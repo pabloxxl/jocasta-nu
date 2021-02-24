@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"log"
 	"os"
 	"strconv"
@@ -38,8 +39,24 @@ func parseEnv() (int, string, int) {
 	return port, resolverIPEnv, resolverPort
 }
 
+func readBlockedFile(path string) []string {
+	file, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("Cannot open %v", path)
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines
+}
+
 func main() {
+	blockedHosts := readBlockedFile("/blocked.txt")
 	port, resolverIP, resolverPort := parseEnv()
-	dnsServer := dns.GetConnection(port, resolverIP, resolverPort)
+	dnsServer := dns.GetConnection(port, resolverIP, resolverPort, blockedHosts)
 	dns.Listen(dnsServer)
 }

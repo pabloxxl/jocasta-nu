@@ -3,6 +3,7 @@ package dns
 import (
 	"log"
 	"net"
+	"strings"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -12,6 +13,7 @@ type server struct {
 	port         int
 	resolverIP   string
 	resolverPort int
+	blockedHosts []string
 	buffSize     int
 }
 
@@ -29,7 +31,7 @@ func (s *server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
 		log.Println(err)
 		return false
 	}
-	log.Printf("Sent %d bytes to %v", written, addr)
+	log.Printf("Sent %d bytes to %v:%v", written, addr.IP, addr.Port)
 	return true
 }
 
@@ -58,8 +60,8 @@ func (s *server) finish() {
 }
 
 // GetConnection get connection struct filled with preliminary data
-func GetConnection(port int, resolverIP string, resolverPort int) *server {
-	srv := server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, buffSize: buffSize}
+func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts []string) *server {
+	srv := server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize}
 	return &srv
 }
 
@@ -110,9 +112,22 @@ func Listen(s *server) {
 			continue
 		}
 
-		log.Printf("Received from %v, %+v", addr, m.Questions[0].Name)
-		resolver := net.UDPAddr{IP: net.ParseIP(s.resolverIP), Port: s.resolverPort}
-		s.sendPacket(m, resolver)
-		cache[m.ID] = &addr
+		blocked := false
+		for _, question := range m.Questions {
+			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
+			for _, blockedHost := range s.blockedHosts {
+				if strings.Contains(question.Name.String(), blockedHost) {
+					log.Printf("Blocking %v because of rule: BLOCK %v", question.Name.String(), blockedHost)
+					blocked = true
+				}
+			}
+		}
+		if !blocked {
+			resolver := net.UDPAddr{IP: net.ParseIP(s.resolverIP), Port: s.resolverPort}
+			s.sendPacket(m, resolver)
+			cache[m.ID] = &addr
+		} else {
+			s.sendPacket(m, addr)
+		}
 	}
 }
