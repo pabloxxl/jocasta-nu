@@ -8,18 +8,19 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-type server struct {
+// Server struct containing all dns connection data
+type Server struct {
 	conn         *net.UDPConn
 	port         int
 	resolverIP   string
 	resolverPort int
-	blockedHosts []string
+	blockedHosts []Record
 	buffSize     int
 }
 
 const buffSize = 512
 
-func (s *server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
+func (s *Server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
 	packed, err := message.Pack()
 	if err != nil {
 		log.Println(err)
@@ -35,7 +36,7 @@ func (s *server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
 	return true
 }
 
-func (s *server) read(buf []byte) (net.UDPAddr, bool) {
+func (s *Server) read(buf []byte) (net.UDPAddr, bool) {
 	_, addr, err := s.conn.ReadFromUDP(buf)
 	if err != nil {
 		log.Println(err)
@@ -44,7 +45,7 @@ func (s *server) read(buf []byte) (net.UDPAddr, bool) {
 	return *addr, true
 }
 
-func (s *server) start() bool {
+func (s *Server) start() bool {
 	log.Printf("Listening on port %d", s.port)
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: s.port})
 	if err != nil {
@@ -55,18 +56,18 @@ func (s *server) start() bool {
 	return true
 }
 
-func (s *server) finish() {
+func (s *Server) finish() {
 	s.conn.Close()
 }
 
 // GetConnection get connection struct filled with preliminary data
-func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts []string) *server {
-	srv := server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize}
+func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts []Record) *Server {
+	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize}
 	return &srv
 }
 
 // Listen start connection and handle incoming queries
-func Listen(s *server) {
+func Listen(s *Server) {
 	ok := s.start()
 	if !ok {
 		return
@@ -116,9 +117,11 @@ func Listen(s *server) {
 		for _, question := range m.Questions {
 			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
 			for _, blockedHost := range s.blockedHosts {
-				if strings.Contains(question.Name.String(), blockedHost) {
-					log.Printf("Blocking %v because of rule: BLOCK %v", question.Name.String(), blockedHost)
-					blocked = true
+				if strings.Contains(question.Name.String(), blockedHost.url) {
+					log.Printf("%v, %v", strings.TrimSuffix(question.Name.String(), "."), blockedHost.string())
+					if blockedHost.action != ActionLog {
+						blocked = true
+					}
 				}
 			}
 		}

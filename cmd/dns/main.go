@@ -39,17 +39,17 @@ func parseEnv() (int, string, int) {
 	return port, resolverIPEnv, resolverPort
 }
 
-func readBlockedFile(path string) []string {
+func readBlockedFile(path string) []dns.Record {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("Cannot open %v", path)
 	}
 	defer file.Close()
 
-	var lines []string
+	var lines []dns.Record
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		lines = append(lines, *dns.CreateRecordBlock(scanner.Text()))
 	}
 	return lines
 }
