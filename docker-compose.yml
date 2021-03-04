@@ -1,0 +1,11 @@
+services:
+  dns:
+    image: dns:latest
+    ports:
+      - 8090:8090/udp
+  rest:
+    image: rest:latest
+    ports:
+      - 8080:8080/tcp
+
+
