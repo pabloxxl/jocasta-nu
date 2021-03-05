@@ -3,12 +3,13 @@ FROM golang:latest as build
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV WORKDIR ${GOPATH}/app/
+ENV WORKDIR ${GOPATH}/app
 ENV CGO_ENABLED=0
 
 WORKDIR $WORKDIR
 
-COPY go.* $WORKDIR
+COPY go.mod $WORKDIR/
+COPY go.sum $WORKDIR/
 RUN go mod download
 COPY . $WORKDIR
 
@@ -21,4 +22,3 @@ COPY blocked.txt /
 
 FROM scratch AS rest
 COPY --from=build /app/rest /
-COPY blocked.txt /

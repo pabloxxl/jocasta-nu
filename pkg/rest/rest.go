@@ -15,6 +15,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 // Serve serve rest api
 func Serve() {
+	log.Printf("Listening on port %d", 8080)
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/ping", ping)
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
