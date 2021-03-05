@@ -1,11 +1,17 @@
 services:
   dns:
-    image: dns:latest
+    image: dns:${TAG}
     ports:
       - 8090:8090/udp
+    environment:
+      - PORT=8090
+      - RESOLVER_IP=1.1.1.1
+      - RESOLVER_PORT=53
+    command: /dns
   rest:
-    image: rest:latest
+    image: rest:${TAG}
     ports:
       - 8080:8080/tcp
+    command: /rest
 
 
