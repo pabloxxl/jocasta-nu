@@ -6,8 +6,8 @@ all: images compose
 #PLATFORM=linux/amd64
 PLATFORM=linux/arm
 dns:
-	@docker build -t dns:`echo ${PLATFORM} | sed 's@/@_@'` --target bin --build-arg APP_NAME=dns --platform ${PLATFORM} .
+	@docker build -t dns:`echo ${PLATFORM} | sed 's@/@_@'` --target dns --platform ${PLATFORM} .
 rest:
-	@docker build -t rest:`echo ${PLATFORM} | sed 's@/@_@'` --target bin --build-arg APP_NAME=rest --platform ${PLATFORM} .
+	@docker build -t rest:`echo ${PLATFORM} | sed 's@/@_@'` --target rest --platform ${PLATFORM} .
 compose:
 	@TAG=`echo ${PLATFORM} | sed 's@/@_@'` docker-compose up
