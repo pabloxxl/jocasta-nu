@@ -13,5 +13,19 @@ services:
     ports:
       - 8080:8080/tcp
     command: /rest
+  mongo:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: example
+      MONGO_INITDB_ROOT_PASSWORD: example
+    command: --quiet
+    ports:
+      - 27017:27017/tcp
+    volumes:
+      - mongo_volume:/data/db
+
+volumes:
+  mongo_volume:
+
 
 

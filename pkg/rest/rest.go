@@ -6,11 +6,16 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/pabloxxl/jocasta-nu/pkg/db"
 )
 
 func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handling /ping")
-	w.Write([]byte("pong"))
+	client := db.CreateClient()
+	defer db.DisconnectClient(client)
+
+	w.Write([]byte(db.GetDatabaseNames(client)))
+
 }
 
 // Serve serve rest api

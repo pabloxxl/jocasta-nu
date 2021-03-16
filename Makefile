@@ -4,7 +4,7 @@ all: images compose
 
 # TODO: In final release it would be better to default to amd64
 #PLATFORM=linux/amd64
-PLATFORM=linux/arm
+PLATFORM=linux/arm64
 dns:
 	@docker build -t dns:`echo ${PLATFORM} | sed 's@/@_@'` --target dns --platform ${PLATFORM} .
 rest:
