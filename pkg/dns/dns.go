@@ -117,9 +117,9 @@ func Listen(s *Server) {
 		for _, question := range m.Questions {
 			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
 			for _, blockedHost := range s.blockedHosts {
-				if strings.Contains(question.Name.String(), blockedHost.url) {
+				if strings.Contains(question.Name.String(), blockedHost.URL) {
 					log.Printf("%v, %v", strings.TrimSuffix(question.Name.String(), "."), blockedHost.string())
-					if blockedHost.action != ActionLog {
+					if blockedHost.Action != ActionLog {
 						blocked = true
 					}
 				}

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/pabloxxl/jocasta-nu/pkg/dns"
 )
 
 const timeout = 10
@@ -43,4 +46,18 @@ func GetDatabaseNames(client *mongo.Client) string {
 func createTimeoutContext(tmo int) (*context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
 	return &ctx, cancel
+}
+
+func PutRecord(client *mongo.Client, record dns.Record) {
+	ctx, cancel := createTimeoutContext(timeout)
+	defer cancel()
+
+	database := client.Database("jocastanu")
+	recordCollection := database.Collection("records")
+	result, err := recordCollection.InsertOne(*ctx, record)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result.InsertedID)
+
 }
