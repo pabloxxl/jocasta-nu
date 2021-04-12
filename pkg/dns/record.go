@@ -64,6 +64,7 @@ func CreateManyRecordsFromDB(key string, value interface{}) *map[int]*Record {
 	records := db.GetAny(client, "records", "", nil)
 
 	for key, value := range records {
+		// This probably will not be needed in final version and clean database
 		if _, ok := value["action"]; !ok {
 			log.Printf("No action found; discarding record")
 			continue
