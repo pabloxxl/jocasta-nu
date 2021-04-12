@@ -104,6 +104,7 @@ func Listen(s *Server) {
 				ok := s.sendPacket(m, *cache[m.ID])
 				delete(cache, m.ID)
 				if !ok {
+					log.Printf("Failed to remove record from cache")
 					continue
 				}
 			} else {

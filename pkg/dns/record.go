@@ -10,8 +10,8 @@ import (
 // Record struct containging single record with corresponding action
 type Record struct {
 	ID     primitive.ObjectID `bson:"_id,omitempty"`
-	Action int                `bson:"action,omitempty"`
-	URL    string             `bson:"url,omitempty"`
+	Action int                `bson:"action"`
+	URL    string             `bson:"url"`
 }
 
 const (
@@ -24,9 +24,14 @@ const (
 )
 
 func (r *Record) string() string {
+	actionString := ActionToString(r.Action)
+	return fmt.Sprintf("rule: %v, url: %v", actionString, r.URL)
+}
+
+func ActionToString(action int) string {
 	actionString := "unknown"
 
-	switch r.Action {
+	switch action {
 	case ActionBlock:
 		actionString = "BLOCK"
 	case ActionBlockRegex:
@@ -35,7 +40,7 @@ func (r *Record) string() string {
 		actionString = "LOG"
 	}
 
-	return fmt.Sprintf("rule: %v, url: %v", actionString, r.URL)
+	return actionString
 }
 
 // CreateRecordBlock create record structure with type ActionBlock

@@ -30,8 +30,23 @@ func insert(w http.ResponseWriter, r *http.Request) {
 
 	client := db.CreateClient()
 
-	record := dns.Record{Action: dns.ActionBlock, URL: url[0]}
-	db.PutRecord(client, record)
+	record := dns.CreateRecordBlock(url[0])
+	log.Printf("Inserting record: %v", record)
+	db.PutAny(client, record)
+}
+
+func records(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Handling /records")
+
+	client := db.CreateClient()
+
+	records := db.GetAny(client, "records", "action", 0)
+
+	for _, value := range records {
+		actionInt := int(value["action"].(int32))
+		record := dns.CreateRecord(value["url"].(string), actionInt)
+		w.Write([]byte(fmt.Sprintf("%s %s\n", dns.ActionToString(record.Action), record.URL)))
+	}
 }
 
 // Serve serve rest api
@@ -40,5 +55,6 @@ func Serve() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 	myRouter.HandleFunc("/ping", ping)
 	myRouter.HandleFunc("/insert", insert)
+	myRouter.HandleFunc("/records", records)
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
