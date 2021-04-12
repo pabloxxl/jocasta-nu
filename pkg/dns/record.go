@@ -2,6 +2,7 @@ package dns
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -63,16 +64,21 @@ func CreateManyRecordsFromDB(key string, value interface{}) *map[int]*Record {
 	records := db.GetAny(client, "records", "", nil)
 
 	for key, value := range records {
-		actionInt := -1
-		if _, ok := value["action"]; ok {
-			actionInt = int(value["action"].(int32))
+		if _, ok := value["action"]; !ok {
+			log.Printf("No action found; discarding record")
 		}
+
+		actionInt := int(value["action"].(int32))
 
 		record := CreateRecord(value["url"].(string), actionInt)
 		recordMap[key] = record
 	}
 
 	return &recordMap
+}
+
+func CreateAllRecordsFromDB() *map[int]*Record {
+	return CreateManyRecordsFromDB("", nil)
 }
 
 // TODO add CreateOneRecordFromDB

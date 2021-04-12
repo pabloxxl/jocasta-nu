@@ -38,7 +38,7 @@ func insert(w http.ResponseWriter, r *http.Request) {
 func records(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handling /records")
 
-	records := *dns.CreateManyRecordsFromDB("", nil)
+	records := *dns.CreateAllRecordsFromDB()
 	for _, value := range records {
 		w.Write([]byte(fmt.Sprintf("%s %s\n", dns.ActionToString(value.Action), value.URL)))
 	}
