@@ -66,6 +66,7 @@ func CreateManyRecordsFromDB(key string, value interface{}) *map[int]*Record {
 	for key, value := range records {
 		if _, ok := value["action"]; !ok {
 			log.Printf("No action found; discarding record")
+			continue
 		}
 
 		actionInt := int(value["action"].(int32))
