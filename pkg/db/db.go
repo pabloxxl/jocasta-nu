@@ -73,7 +73,12 @@ func GetAny(client *mongo.Client, collectionName string, key string, value inter
 	ctx, cancel := createDeadlineContext(timeout)
 	defer cancel()
 
-	cur, err := collection.Find(*ctx, bson.M{key: value})
+	bsonFilter := bson.M{}
+	if key != "" && value != nil {
+		bsonFilter = bson.M{key: value}
+	}
+
+	cur, err := collection.Find(*ctx, bsonFilter)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,4 +87,18 @@ func GetAny(client *mongo.Client, collectionName string, key string, value inter
 		log.Fatal(err)
 	}
 	return filtered
+}
+
+func GetOne(client *mongo.Client, collectionName string, key string, value interface{}) *mongo.SingleResult {
+	database := client.Database("jocastanu")
+	collection := database.Collection(collectionName)
+	ctx, cancel := createDeadlineContext(timeout)
+	defer cancel()
+
+	bsonFilter := bson.M{}
+	if key != "" && value != nil {
+		bsonFilter = bson.M{key: value}
+	}
+
+	return collection.FindOne(*ctx, bsonFilter)
 }

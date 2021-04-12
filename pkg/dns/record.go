@@ -2,8 +2,8 @@ package dns
 
 import (
 	"fmt"
-	"log"
 
+	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -29,7 +29,7 @@ func (r *Record) string() string {
 }
 
 func ActionToString(action int) string {
-	actionString := "unknown"
+	actionString := "UNKNOWN"
 
 	switch action {
 	case ActionBlock:
@@ -51,10 +51,28 @@ func CreateRecordBlock(url string) *Record {
 
 // CreateRecord create record structure
 func CreateRecord(url string, action int) *Record {
-	if action != ActionBlock && action != ActionBlockRegex && action != ActionLog {
-		log.Printf("Wrong action provided: %v", action)
-		return nil
-	}
 	rec := Record{Action: action, URL: url}
 	return &rec
 }
+
+func CreateManyRecordsFromDB(key string, value interface{}) *map[int]*Record {
+
+	recordMap := make(map[int]*Record)
+	client := db.CreateClient()
+
+	records := db.GetAny(client, "records", "", nil)
+
+	for key, value := range records {
+		actionInt := -1
+		if _, ok := value["action"]; ok {
+			actionInt = int(value["action"].(int32))
+		}
+
+		record := CreateRecord(value["url"].(string), actionInt)
+		recordMap[key] = record
+	}
+
+	return &recordMap
+}
+
+// TODO add CreateOneRecordFromDB

@@ -38,14 +38,9 @@ func insert(w http.ResponseWriter, r *http.Request) {
 func records(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handling /records")
 
-	client := db.CreateClient()
-
-	records := db.GetAny(client, "records", "action", 0)
-
+	records := *dns.CreateManyRecordsFromDB("", nil)
 	for _, value := range records {
-		actionInt := int(value["action"].(int32))
-		record := dns.CreateRecord(value["url"].(string), actionInt)
-		w.Write([]byte(fmt.Sprintf("%s %s\n", dns.ActionToString(record.Action), record.URL)))
+		w.Write([]byte(fmt.Sprintf("%s %s\n", dns.ActionToString(value.Action), value.URL)))
 	}
 }
 
