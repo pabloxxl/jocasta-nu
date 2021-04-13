@@ -18,7 +18,6 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /app/rest cmd/rest/main.go
 
 FROM scratch AS dns
 COPY --from=build /app/dns /
-COPY blocked.txt /
 
 FROM scratch AS rest
 COPY --from=build /app/rest /

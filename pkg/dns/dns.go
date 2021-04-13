@@ -14,7 +14,7 @@ type Server struct {
 	port         int
 	resolverIP   string
 	resolverPort int
-	blockedHosts []Record
+	blockedHosts *[]Record
 	buffSize     int
 }
 
@@ -61,7 +61,7 @@ func (s *Server) finish() {
 }
 
 // GetConnection get connection struct filled with preliminary data
-func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts []Record) *Server {
+func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts *[]Record) *Server {
 	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize}
 	return &srv
 }
@@ -117,7 +117,7 @@ func Listen(s *Server) {
 		blocked := false
 		for _, question := range m.Questions {
 			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
-			for _, blockedHost := range s.blockedHosts {
+			for _, blockedHost := range *s.blockedHosts {
 				if strings.Contains(question.Name.String(), blockedHost.URL) {
 					log.Printf("%v, %v", strings.TrimSuffix(question.Name.String(), "."), blockedHost.string())
 					if blockedHost.Action != ActionLog {

@@ -56,30 +56,29 @@ func CreateRecord(url string, action int) *Record {
 	return &rec
 }
 
-func CreateManyRecordsFromDB(key string, value interface{}) *map[int]*Record {
+func CreateManyRecordsFromDB(key string, value interface{}) *[]Record {
 
-	recordMap := make(map[int]*Record)
+	var records []Record
 	client := db.CreateClient()
 
-	records := db.GetAny(client, "records", "", nil)
+	recordsFromDB := db.GetAny(client, "records", "", nil)
 
-	for key, value := range records {
+	for _, value := range recordsFromDB {
 		// This probably will not be needed in final version and clean database
 		if _, ok := value["action"]; !ok {
-			log.Printf("No action found; discarding record")
+			log.Printf("No action found for %s; discarding record", value["url"])
 			continue
 		}
 
 		actionInt := int(value["action"].(int32))
 
-		record := CreateRecord(value["url"].(string), actionInt)
-		recordMap[key] = record
+		records = append(records, *CreateRecord(value["url"].(string), actionInt))
 	}
 
-	return &recordMap
+	return &records
 }
 
-func CreateAllRecordsFromDB() *map[int]*Record {
+func CreateAllRecordsFromDB() *[]Record {
 	return CreateManyRecordsFromDB("", nil)
 }
 
