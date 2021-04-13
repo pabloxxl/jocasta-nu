@@ -6,6 +6,7 @@ import (
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Record struct containging single record with corresponding action
@@ -84,10 +85,9 @@ func IsRecordEmpty(record Record) bool {
 	return false
 }
 
-func CreateManyRecordsFromDB(key string, value interface{}) *[]Record {
+func CreateManyRecordsFromDB(client *mongo.Client, key string, value interface{}) *[]Record {
 
 	var records []Record
-	client := db.CreateClient()
 
 	recordsFromDB := db.GetAny(client, "records", "", nil)
 
@@ -106,8 +106,8 @@ func CreateManyRecordsFromDB(key string, value interface{}) *[]Record {
 	return &records
 }
 
-func CreateAllRecordsFromDB() *[]Record {
-	return CreateManyRecordsFromDB("", nil)
+func CreateAllRecordsFromDB(client *mongo.Client) *[]Record {
+	return CreateManyRecordsFromDB(client, "", nil)
 }
 
 func GetOneRecordFromDB(url string) Record {
@@ -124,7 +124,7 @@ func GetOneRecordFromDB(url string) Record {
 	return record
 }
 
-func GetRecordAction(url string, records []Record) int {
+func GetRecordAction(client *mongo.Client, url string, records []Record) int {
 	if len(records) > 0 {
 		for _, elem := range records {
 			if elem.URL == url {

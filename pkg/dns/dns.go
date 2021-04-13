@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -70,6 +71,7 @@ func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts *
 
 // Listen start connection and handle incoming queries
 func Listen(s *Server) {
+	client := db.CreateClient()
 	ok := s.start()
 	if !ok {
 		return
@@ -119,7 +121,7 @@ func Listen(s *Server) {
 			} else {
 				log.Println(questionToStringShort(question))
 			}
-			action := GetRecordAction(question.URL, *s.blockedHosts)
+			action := GetRecordAction(client, question.URL, *s.blockedHosts)
 			blocked = action == ActionBlock
 			logged = action == ActionLog
 		}

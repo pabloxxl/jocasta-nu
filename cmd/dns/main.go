@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"github.com/pabloxxl/jocasta-nu/pkg/dns"
 )
 
@@ -53,7 +54,8 @@ func parseEnv() (int, string, int, bool) {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	blockedHosts := dns.CreateAllRecordsFromDB()
+	client := db.CreateClient()
+	blockedHosts := dns.CreateAllRecordsFromDB(client)
 	log.Printf("Read %d records from database", len(*blockedHosts))
 	port, resolverIP, resolverPort, debug := parseEnv()
 	dnsServer := dns.GetConnection(port, resolverIP, resolverPort, blockedHosts, debug)
