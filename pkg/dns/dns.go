@@ -3,7 +3,6 @@ package dns
 import (
 	"log"
 	"net"
-	"strings"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
@@ -115,16 +114,12 @@ func Listen(s *Server) {
 		}
 
 		blocked := false
+		logged := false
 		for _, question := range m.Questions {
 			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
-			for _, blockedHost := range *s.blockedHosts {
-				if strings.Contains(question.Name.String(), blockedHost.URL) {
-					log.Printf("%v, %v", strings.TrimSuffix(question.Name.String(), "."), blockedHost.string())
-					if blockedHost.Action != ActionLog {
-						blocked = true
-					}
-				}
-			}
+			action := GetRecordAction(question.Name.String(), *s.blockedHosts)
+			blocked = action == ActionBlock
+			logged = action == ActionLog
 		}
 		if !blocked {
 			resolver := net.UDPAddr{IP: net.ParseIP(s.resolverIP), Port: s.resolverPort}
@@ -132,6 +127,10 @@ func Listen(s *Server) {
 			cache[m.ID] = &addr
 		} else {
 			s.sendPacket(m, addr)
+		}
+		if logged {
+			// TODO log to database
+			log.Printf("%d is logged", m.ID)
 		}
 	}
 }

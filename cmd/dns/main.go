@@ -39,6 +39,7 @@ func parseEnv() (int, string, int) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	blockedHosts := dns.CreateAllRecordsFromDB()
 	log.Printf("Read %d records from database", len(*blockedHosts))
 	port, resolverIP, resolverPort := parseEnv()

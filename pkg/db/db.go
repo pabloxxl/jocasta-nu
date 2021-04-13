@@ -2,9 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,10 +12,15 @@ import (
 )
 
 const timeout = 10
+const name = "jocastanu"
+const username = "example"
+const password = "example"
+const uri = "mongodb://mongo:27017"
 
 func CreateClient() *mongo.Client {
-	cred := options.Credential{Username: "example", Password: "example"}
-	clientOptions := options.Client().ApplyURI("mongodb://mongo:27017").SetAuth(cred)
+	log.Printf("Creating client instance for URI: %s", uri)
+	cred := options.Credential{Username: username, Password: password}
+	clientOptions := options.Client().ApplyURI(uri).SetAuth(cred)
 
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
@@ -27,48 +30,40 @@ func CreateClient() *mongo.Client {
 }
 
 func DisconnectClient(client *mongo.Client) {
+	log.Printf("Disconnecting client instance for URI %s", uri)
 	ctx, cancel := createTimeoutContext(timeout)
 	defer cancel()
 	client.Disconnect(*ctx)
 }
 
-func GetDatabaseNames(client *mongo.Client) string {
-	ctx, cancel := createTimeoutContext(timeout)
-	defer cancel()
-	databases, err := client.ListDatabaseNames(*ctx, bson.M{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.Join(databases, " ")
-}
-
 func createTimeoutContext(tmo int) (*context.Context, context.CancelFunc) {
+	log.Printf("Creating timeout context(%d)", tmo)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(tmo)*time.Second)
 	return &ctx, cancel
 }
 
 func createDeadlineContext(deadline int) (*context.Context, context.CancelFunc) {
+	log.Printf("Creating deadline context(%d)", deadline)
 	duration := time.Now().Add(time.Duration(deadline) * time.Second)
 	ctx, cancel := context.WithDeadline(context.Background(), duration)
 	return &ctx, cancel
 }
 
-func PutAny(client *mongo.Client, customStruct interface{}) {
+func PutAny(client *mongo.Client, collectionName string, customStruct interface{}) {
+	log.Printf("Putting %+v into collection %s", customStruct, collectionName)
 	ctx, cancel := createTimeoutContext(timeout)
 	defer cancel()
 
-	database := client.Database("jocastanu")
-	recordCollection := database.Collection("records")
-	result, err := recordCollection.InsertOne(*ctx, customStruct)
+	database := client.Database(name)
+	recordCollection := database.Collection(collectionName)
+	_, err := recordCollection.InsertOne(*ctx, customStruct)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(result.InsertedID)
-
 }
 
 func GetAny(client *mongo.Client, collectionName string, key string, value interface{}) []primitive.M {
-	database := client.Database("jocastanu")
+	database := client.Database(name)
 	collection := database.Collection(collectionName)
 	ctx, cancel := createDeadlineContext(timeout)
 	defer cancel()
@@ -76,6 +71,9 @@ func GetAny(client *mongo.Client, collectionName string, key string, value inter
 	bsonFilter := bson.M{}
 	if key != "" && value != nil {
 		bsonFilter = bson.M{key: value}
+		log.Printf("Get all elements from collection %s for query %s:%s", collectionName, key, value)
+	} else {
+		log.Printf("Get all elements from collection %s", collectionName)
 	}
 
 	cur, err := collection.Find(*ctx, bsonFilter)
@@ -90,15 +88,44 @@ func GetAny(client *mongo.Client, collectionName string, key string, value inter
 }
 
 func GetOne(client *mongo.Client, collectionName string, key string, value interface{}) *mongo.SingleResult {
-	database := client.Database("jocastanu")
+	log.Printf("Get one element from collection %s for query %s:%s", collectionName, key, value)
+	database := client.Database(name)
+	collection := database.Collection(collectionName)
+	ctx, cancel := createDeadlineContext(timeout)
+	defer cancel()
+
+	result := collection.FindOne(*ctx, bson.M{key: value})
+
+	if result.Err() != nil {
+		log.Printf("No elements found in collection %s for query %s:%s: %s", collectionName, key, value, result.Err().Error())
+	}
+	return result
+}
+
+func DeleteAll(client *mongo.Client, collectionName string) {
+	database := client.Database(name)
 	collection := database.Collection(collectionName)
 	ctx, cancel := createDeadlineContext(timeout)
 	defer cancel()
 
 	bsonFilter := bson.M{}
-	if key != "" && value != nil {
-		bsonFilter = bson.M{key: value}
-	}
+	result, err := collection.DeleteMany(*ctx, bsonFilter)
 
-	return collection.FindOne(*ctx, bsonFilter)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Deleted %d elements from %s collection", result.DeletedCount, collectionName)
+}
+
+func CountDocuments(client *mongo.Client, collectionName string) int {
+	database := client.Database(name)
+	collection := database.Collection(collectionName)
+	ctx, cancel := createDeadlineContext(timeout)
+	defer cancel()
+
+	count, err := collection.CountDocuments(*ctx, bson.M{}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return int(count)
 }

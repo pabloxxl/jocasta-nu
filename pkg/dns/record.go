@@ -3,6 +3,7 @@ package dns
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,6 +17,8 @@ type Record struct {
 }
 
 const (
+	// ActionUknown from error or not found record1
+	ActionUnknown = -1
 	// ActionBlock block given url
 	ActionBlock = iota
 	// ActionBlockRegex block given url match
@@ -27,6 +30,10 @@ const (
 func (r *Record) string() string {
 	actionString := ActionToString(r.Action)
 	return fmt.Sprintf("rule: %v, url: %v", actionString, r.URL)
+}
+
+func RecordToString(record Record) string {
+	return record.string()
 }
 
 func ActionToString(action int) string {
@@ -44,6 +51,21 @@ func ActionToString(action int) string {
 	return actionString
 }
 
+func StringToAction(action string) int {
+	actionInt := ActionUnknown
+
+	switch action {
+	case "BLOCK":
+		actionInt = ActionBlock
+	case "BLOCK_REGEX":
+		actionInt = ActionBlockRegex
+	case "LOG":
+		actionInt = ActionLog
+	}
+
+	return actionInt
+}
+
 // CreateRecordBlock create record structure with type ActionBlock
 func CreateRecordBlock(url string) *Record {
 	rec := Record{Action: ActionBlock, URL: url}
@@ -54,6 +76,13 @@ func CreateRecordBlock(url string) *Record {
 func CreateRecord(url string, action int) *Record {
 	rec := Record{Action: action, URL: url}
 	return &rec
+}
+
+func IsRecordEmpty(record Record) bool {
+	if record.URL == "" && record.Action == ActionUnknown {
+		return true
+	}
+	return false
 }
 
 func CreateManyRecordsFromDB(key string, value interface{}) *[]Record {
@@ -82,4 +111,33 @@ func CreateAllRecordsFromDB() *[]Record {
 	return CreateManyRecordsFromDB("", nil)
 }
 
-// TODO add CreateOneRecordFromDB
+func GetOneRecordFromDB(url string) Record {
+	record := Record{URL: "", Action: ActionUnknown}
+	client := db.CreateClient()
+	recordFromDB := db.GetOne(client, "records", "url", url)
+	if recordFromDB.Err() != nil {
+		return record
+	}
+	err := recordFromDB.Decode(&record)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return record
+}
+
+func GetRecordAction(url string, records []Record) int {
+	trimmedUrl := strings.TrimSuffix(url, ".")
+	if len(records) > 0 {
+		for _, elem := range records {
+			if elem.URL == trimmedUrl {
+				log.Printf("%s is blocked from initial list", url)
+				return elem.Action
+			}
+		}
+	}
+	record := GetOneRecordFromDB(trimmedUrl)
+	if IsRecordEmpty(record) {
+		log.Print("Record is clean")
+	}
+	return record.Action
+}
