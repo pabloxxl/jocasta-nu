@@ -115,14 +115,20 @@ func DeleteAll(client *mongo.Client, collectionName string) {
 	log.Printf("Deleted %d documents from %s collection", result.DeletedCount, collectionName)
 }
 
-func CountDocuments(client *mongo.Client, collectionName string) int {
-	log.Printf("Get document count for collection %s", collectionName)
+func CountDocuments(client *mongo.Client, collectionName string, key string, value interface{}) int {
+	bsonFilter := bson.M{}
+	if key != "" && value != nil {
+		bsonFilter = bson.M{key: value}
+		log.Printf("Count all documents from collection %s for query %s:%s", collectionName, key, value)
+	} else {
+		log.Printf("Count all documents from collection %s", collectionName)
+	}
 	database := client.Database(name)
 	collection := database.Collection(collectionName)
 	ctx, cancel := createDeadlineContext(timeout)
 	defer cancel()
 
-	count, err := collection.CountDocuments(*ctx, bson.M{}, nil)
+	count, err := collection.CountDocuments(*ctx, bsonFilter, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

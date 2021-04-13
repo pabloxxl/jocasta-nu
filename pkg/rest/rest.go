@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,8 +27,9 @@ func stats(client *mongo.Client) http.HandlerFunc {
 
 		// TODO maybe use json here?
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("secret_number: 42\n"))
-		w.Write([]byte(fmt.Sprintf("number_of_records: %d\n", db.CountDocuments(client, "records"))))
+		stats := dns.GetStatsCollection(client)
+		statsJson, _ := json.Marshal(stats)
+		w.Write(statsJson)
 	}
 }
 

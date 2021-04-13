@@ -113,6 +113,7 @@ func Listen(s *Server) {
 			continue
 		}
 
+		action := ActionNo
 		blocked := false
 		logged := false
 		for _, question := range data.Questions {
@@ -121,7 +122,7 @@ func Listen(s *Server) {
 			} else {
 				log.Println(questionToStringShort(question))
 			}
-			action := GetRecordAction(client, question.URL, *s.blockedHosts)
+			action = GetRecordAction(client, question.URL, *s.blockedHosts)
 			blocked = action == ActionBlock
 			logged = action == ActionLog
 		}
@@ -135,6 +136,10 @@ func Listen(s *Server) {
 		if logged {
 			// TODO log to database
 			log.Printf("%d is logged", m.ID)
+		}
+
+		if !data.isResponse {
+			putStat(client, ActionToString(action), data, addr.IP, addr.Port)
 		}
 	}
 }

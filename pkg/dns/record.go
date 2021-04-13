@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -18,7 +19,7 @@ type Record struct {
 
 const (
 	// ActionUknown from error or not found record1
-	ActionUnknown = -1
+	ActionNo = -1
 	// ActionBlock block given url
 	ActionBlock = iota
 	// ActionBlockRegex block given url match
@@ -37,7 +38,7 @@ func RecordToString(record Record) string {
 }
 
 func ActionToString(action int) string {
-	actionString := "UNKNOWN"
+	actionString := "NO ACTION"
 
 	switch action {
 	case ActionBlock:
@@ -52,7 +53,7 @@ func ActionToString(action int) string {
 }
 
 func StringToAction(action string) int {
-	actionInt := ActionUnknown
+	actionInt := ActionNo
 
 	switch action {
 	case "BLOCK":
@@ -79,28 +80,29 @@ func CreateRecord(url string, action int) *Record {
 }
 
 func IsRecordEmpty(record Record) bool {
-	if record.URL == "" && record.Action == ActionUnknown {
+	if record.URL == "" && record.Action == ActionNo {
 		return true
 	}
 	return false
 }
 
 func CreateManyRecordsFromDB(client *mongo.Client, key string, value interface{}) *[]Record {
-
 	var records []Record
+	var record Record
 
 	recordsFromDB := db.GetAny(client, "records", "", nil)
 
 	for _, value := range recordsFromDB {
-		// This probably will not be needed in final version and clean database
-		if _, ok := value["action"]; !ok {
-			log.Printf("No action found for %s; discarding record", value["url"])
-			continue
+		data, err := bson.Marshal(value)
+		if err != nil {
+			log.Fatal("Failed to marshal data")
+		}
+		err = bson.Unmarshal(data, &record)
+		if err != nil {
+			log.Fatal("Failed to unmarshal data")
 		}
 
-		actionInt := int(value["action"].(int32))
-
-		records = append(records, *CreateRecord(value["url"].(string), actionInt))
+		records = append(records, record)
 	}
 
 	return &records
@@ -111,7 +113,7 @@ func CreateAllRecordsFromDB(client *mongo.Client) *[]Record {
 }
 
 func GetOneRecordFromDB(url string) Record {
-	record := Record{URL: "", Action: ActionUnknown}
+	record := Record{URL: "", Action: ActionNo}
 	client := db.CreateClient()
 	recordFromDB := db.GetOne(client, "records", "url", url)
 	if recordFromDB.Err() != nil {
