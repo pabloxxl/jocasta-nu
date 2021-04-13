@@ -8,7 +8,7 @@ import (
 	"github.com/pabloxxl/jocasta-nu/pkg/dns"
 )
 
-func parseEnv() (int, string, int) {
+func parseEnv() (int, string, int, bool) {
 	portEnv, ok := os.LookupEnv("PORT")
 	if !ok {
 		log.Fatal("PORT environment variable is not set!")
@@ -23,6 +23,11 @@ func parseEnv() (int, string, int) {
 		log.Fatal("RESOLVER_PORT environment variable is not set!")
 	}
 
+	debugEnv, ok := os.LookupEnv("DEBUG")
+	if !ok {
+		debugEnv = "0"
+	}
+
 	port, error := strconv.Atoi(portEnv)
 	if error != nil {
 		log.Fatal("PORT environment variable is not integer!")
@@ -35,14 +40,22 @@ func parseEnv() (int, string, int) {
 
 	}
 
-	return port, resolverIPEnv, resolverPort
+	debugInt, error := strconv.Atoi(debugEnv)
+	if error != nil {
+		log.Fatal("DEBUG environment variable is not integer!")
+
+	}
+
+	debug := debugInt > 0
+
+	return port, resolverIPEnv, resolverPort, debug
 }
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	blockedHosts := dns.CreateAllRecordsFromDB()
 	log.Printf("Read %d records from database", len(*blockedHosts))
-	port, resolverIP, resolverPort := parseEnv()
-	dnsServer := dns.GetConnection(port, resolverIP, resolverPort, blockedHosts)
+	port, resolverIP, resolverPort, debug := parseEnv()
+	dnsServer := dns.GetConnection(port, resolverIP, resolverPort, blockedHosts, debug)
 	dns.Listen(dnsServer)
 }

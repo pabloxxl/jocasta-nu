@@ -3,7 +3,6 @@ package dns
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -126,18 +125,18 @@ func GetOneRecordFromDB(url string) Record {
 }
 
 func GetRecordAction(url string, records []Record) int {
-	trimmedUrl := strings.TrimSuffix(url, ".")
 	if len(records) > 0 {
 		for _, elem := range records {
-			if elem.URL == trimmedUrl {
-				log.Printf("%s is blocked from initial list", url)
+			if elem.URL == url {
+				log.Printf("%s is marked from initial list: %s", url, ActionToString(elem.Action))
 				return elem.Action
 			}
 		}
 	}
-	record := GetOneRecordFromDB(trimmedUrl)
-	if IsRecordEmpty(record) {
-		log.Print("Record is clean")
+	record := GetOneRecordFromDB(url)
+	if !IsRecordEmpty(record) {
+		log.Printf("%s is marked from database query: %s", url, ActionToString(record.Action))
 	}
+
 	return record.Action
 }

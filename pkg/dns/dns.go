@@ -15,6 +15,7 @@ type Server struct {
 	resolverPort int
 	blockedHosts *[]Record
 	buffSize     int
+	debug        bool
 }
 
 const buffSize = 512
@@ -31,7 +32,9 @@ func (s *Server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
 		log.Println(err)
 		return false
 	}
-	log.Printf("Sent %d bytes to %v:%v", written, addr.IP, addr.Port)
+	if s.debug {
+		log.Printf("Sent %d bytes to %v:%v", written, addr.IP, addr.Port)
+	}
 	return true
 }
 
@@ -60,8 +63,8 @@ func (s *Server) finish() {
 }
 
 // GetConnection get connection struct filled with preliminary data
-func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts *[]Record) *Server {
-	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize}
+func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts *[]Record, debug bool) *Server {
+	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize, debug: debug}
 	return &srv
 }
 
@@ -83,31 +86,26 @@ func Listen(s *Server) {
 			continue
 		}
 
-		var m dnsmessage.Message
-		err := m.Unpack(buf)
+		m, data, err := createMessageFromBuffer(buf)
 		if err != nil {
-			log.Println(err)
 			continue
 		}
 
-		if m.Header.Response {
-			if len(m.Authorities) != 0 {
-				log.Printf("Received response from %v, %+v", s.resolverIP, m.Authorities[0].Header.Type)
-			} else {
-				log.Printf("Received response from %v", s.resolverIP)
-
+		if data.isResponse {
+			if s.debug {
+				log.Println(responseToString(data, *s))
 			}
 
-			_, ok := cache[m.ID]
+			_, ok := cache[data.ID]
 			if ok {
-				ok := s.sendPacket(m, *cache[m.ID])
-				delete(cache, m.ID)
+				ok := s.sendPacket(m, *cache[data.ID])
+				delete(cache, data.ID)
 				if !ok {
 					log.Printf("Failed to remove record from cache")
 					continue
 				}
 			} else {
-				log.Printf("No request associated with %d", m.ID)
+				log.Printf("No request associated with %d", data.ID)
 			}
 
 			continue
@@ -115,16 +113,20 @@ func Listen(s *Server) {
 
 		blocked := false
 		logged := false
-		for _, question := range m.Questions {
-			log.Printf("Received question for %+v from %v:%v, %+v", question.Name, addr.IP, addr.Port, question.Type)
-			action := GetRecordAction(question.Name.String(), *s.blockedHosts)
+		for _, question := range data.Questions {
+			if s.debug {
+				log.Println(questionToString(question, addr))
+			} else {
+				log.Println(questionToStringShort(question))
+			}
+			action := GetRecordAction(question.URL, *s.blockedHosts)
 			blocked = action == ActionBlock
 			logged = action == ActionLog
 		}
 		if !blocked {
 			resolver := net.UDPAddr{IP: net.ParseIP(s.resolverIP), Port: s.resolverPort}
 			s.sendPacket(m, resolver)
-			cache[m.ID] = &addr
+			cache[data.ID] = &addr
 		} else {
 			s.sendPacket(m, addr)
 		}

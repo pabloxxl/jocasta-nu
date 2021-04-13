@@ -7,6 +7,7 @@ services:
       - PORT=8090
       - RESOLVER_IP=1.1.1.1
       - RESOLVER_PORT=53
+      - DEBUG=1
     command: /dns
   rest:
     image: rest:${TAG}
