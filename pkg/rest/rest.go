@@ -10,6 +10,7 @@ import (
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
 	"github.com/pabloxxl/jocasta-nu/pkg/dns"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 func ping(w http.ResponseWriter, r *http.Request) {
@@ -50,14 +51,26 @@ func insert(client *mongo.Client) http.HandlerFunc {
 			action = dns.StringToAction(actionFromURL[0])
 		}
 
-		questionRecord := dns.GetOneRecordFromDB(url[0])
+		recordType := dnsmessage.TypeA
+		var err error
+		recordTypeFromURL, ok := r.URL.Query()["type"]
+		if ok && len(recordTypeFromURL[0]) > 0 {
+			recordType, err = dns.StringToType(recordTypeFromURL[0])
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(fmt.Sprintf("%d: Invalid type %s", http.StatusBadRequest, recordTypeFromURL[0])))
+				return
+			}
+		}
+
+		questionRecord := dns.GetOneRecordFromDB(url[0], recordType)
 		if !dns.IsRecordEmpty(questionRecord) {
 			w.WriteHeader(http.StatusConflict)
 			w.Write([]byte(fmt.Sprintf("%d: Conflict with %s", http.StatusConflict, dns.RecordToString(questionRecord))))
 			return
 		}
 
-		record := dns.CreateRecord(url[0], action)
+		record := dns.CreateRecord(url[0], action, recordType)
 		db.PutAny(client, "records", record)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf("%d: OK", http.StatusOK)))
@@ -68,11 +81,11 @@ func clear(client *mongo.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Handling /clear")
 
-		db.DeleteAll(client, "records")
+		countRecords := db.DeleteAll(client, "records")
+		countStats := db.DeleteAll(client, "stats")
 
 		w.WriteHeader(http.StatusOK)
-		// TODO it would be nice to print number of deleted entries in response
-		w.Write([]byte(fmt.Sprintf("%d: OK", http.StatusOK)))
+		w.Write([]byte(fmt.Sprintf("%d: Deleted %d records and %d stats", http.StatusOK, countRecords, countStats)))
 	}
 }
 
@@ -84,7 +97,7 @@ func records(client *mongo.Client) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 		for _, value := range records {
-			w.Write([]byte(fmt.Sprintf("%s %s\n", dns.ActionToString(value.Action), value.URL)))
+			w.Write([]byte(fmt.Sprintf("%s %s %s\n", dns.ActionToString(value.Action), dns.TypeToString(value.Type), value.URL)))
 		}
 	}
 }

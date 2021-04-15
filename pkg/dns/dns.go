@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/pabloxxl/jocasta-nu/pkg/db"
-	"golang.org/x/net/dns/dnsmessage"
 )
 
 // Server struct containing all dns connection data
@@ -14,15 +13,14 @@ type Server struct {
 	port         int
 	resolverIP   string
 	resolverPort int
-	blockedHosts *[]Record
 	buffSize     int
 	debug        bool
 }
 
 const buffSize = 512
 
-func (s *Server) sendPacket(message dnsmessage.Message, addr net.UDPAddr) bool {
-	packed, err := message.Pack()
+func (s *Server) sendPacket(message MessageData, addr net.UDPAddr) bool {
+	packed, err := message.Data.Pack()
 	if err != nil {
 		log.Println(err)
 		return false
@@ -64,8 +62,8 @@ func (s *Server) finish() {
 }
 
 // GetConnection get connection struct filled with preliminary data
-func GetConnection(port int, resolverIP string, resolverPort int, blockedHosts *[]Record, debug bool) *Server {
-	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, blockedHosts: blockedHosts, buffSize: buffSize, debug: debug}
+func GetConnection(port int, resolverIP string, resolverPort int, debug bool) *Server {
+	srv := Server{port: port, resolverIP: resolverIP, resolverPort: resolverPort, buffSize: buffSize, debug: debug}
 	return &srv
 }
 
@@ -88,26 +86,26 @@ func Listen(s *Server) {
 			continue
 		}
 
-		m, data, err := createMessageFromBuffer(buf)
+		message, err := createMessageFromBuffer(buf)
 		if err != nil {
 			continue
 		}
 
-		if data.isResponse {
+		if message.isResponse {
 			if s.debug {
-				log.Println(responseToString(data, *s))
+				log.Println(responseToString(message, *s))
 			}
 
-			_, ok := cache[data.ID]
+			_, ok := cache[message.ID]
 			if ok {
-				ok := s.sendPacket(m, *cache[data.ID])
-				delete(cache, data.ID)
+				ok := s.sendPacket(message, *cache[message.ID])
+				delete(cache, message.ID)
 				if !ok {
 					log.Printf("Failed to remove record from cache")
 					continue
 				}
 			} else {
-				log.Printf("No request associated with %d", data.ID)
+				log.Printf("No request associated with %d", message.ID)
 			}
 
 			continue
@@ -116,30 +114,26 @@ func Listen(s *Server) {
 		action := ActionNo
 		blocked := false
 		logged := false
-		for _, question := range data.Questions {
+		for _, question := range message.Questions {
 			if s.debug {
 				log.Println(questionToString(question, addr))
 			} else {
 				log.Println(questionToStringShort(question))
 			}
-			action = GetRecordAction(client, question.URL, *s.blockedHosts)
+			action = GetRecord(client, question.URL, question.Type)
 			blocked = action == ActionBlock
 			logged = action == ActionLog
 		}
 		if !blocked {
 			resolver := net.UDPAddr{IP: net.ParseIP(s.resolverIP), Port: s.resolverPort}
-			s.sendPacket(m, resolver)
-			cache[data.ID] = &addr
+			s.sendPacket(message, resolver)
+			cache[message.ID] = &addr
 		} else {
-			s.sendPacket(m, addr)
-		}
-		if logged {
-			// TODO log to database
-			log.Printf("%d is logged", m.ID)
+			s.sendPacket(message, addr)
 		}
 
-		if !data.isResponse {
-			putStat(client, ActionToString(action), data, addr.IP, addr.Port)
+		if !message.isResponse && (blocked || logged) {
+			putStat(client, ActionToString(action), message, addr.IP, addr.Port)
 		}
 	}
 }

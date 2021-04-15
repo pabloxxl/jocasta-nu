@@ -30,7 +30,7 @@ type StatCollection struct {
 
 func putStat(client *mongo.Client, actionString string, data MessageData, ip net.IP, port int) {
 	for _, question := range data.Questions {
-		stat := Stat{Action: actionString, URL: question.URL, Type: question.Type, IP: ip.String(), Port: port, Timestamp: time.Now().Unix()}
+		stat := Stat{Action: actionString, URL: question.URL, Type: question.Type.String(), IP: ip.String(), Port: port, Timestamp: time.Now().Unix()}
 		db.PutAny(client, "stats", stat)
 	}
 }
@@ -61,11 +61,10 @@ func GetStatsCollection(client *mongo.Client) *StatCollection {
 
 	statCollection.Number_of_records = db.CountDocuments(client, "records", "", nil)
 	countBlock := db.CountDocuments(client, "stats", "action", ActionToString(ActionBlock))
-	countBlockRegex := db.CountDocuments(client, "stats", "action", ActionToString(ActionBlockRegex))
 	countLog := db.CountDocuments(client, "stats", "action", ActionToString(ActionLog))
 
-	statCollection.Number_of_blocked_requests = countBlock + countBlockRegex
-	statCollection.Number_of_requests = countBlock + countBlockRegex + countLog
+	statCollection.Number_of_blocked_requests = countBlock
+	statCollection.Number_of_requests = countBlock + countLog
 	statCollection.Requests = getAllStats(client)
 
 	return &statCollection

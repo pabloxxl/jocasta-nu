@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 // Record struct containging single record with corresponding action
@@ -15,6 +16,7 @@ type Record struct {
 	ID     primitive.ObjectID `bson:"_id,omitempty"`
 	Action int                `bson:"action"`
 	URL    string             `bson:"url"`
+	Type   dnsmessage.Type    `bson:"type"`
 }
 
 const (
@@ -22,8 +24,6 @@ const (
 	ActionNo = -1
 	// ActionBlock block given url
 	ActionBlock = iota
-	// ActionBlockRegex block given url match
-	ActionBlockRegex = iota
 	// ActionLog log given url
 	ActionLog = iota
 )
@@ -43,8 +43,6 @@ func ActionToString(action int) string {
 	switch action {
 	case ActionBlock:
 		actionString = "BLOCK"
-	case ActionBlockRegex:
-		actionString = "BLOCK_REGEX"
 	case ActionLog:
 		actionString = "LOG"
 	}
@@ -58,8 +56,6 @@ func StringToAction(action string) int {
 	switch action {
 	case "BLOCK":
 		actionInt = ActionBlock
-	case "BLOCK_REGEX":
-		actionInt = ActionBlockRegex
 	case "LOG":
 		actionInt = ActionLog
 	}
@@ -74,8 +70,8 @@ func CreateRecordBlock(url string) *Record {
 }
 
 // CreateRecord create record structure
-func CreateRecord(url string, action int) *Record {
-	rec := Record{Action: action, URL: url}
+func CreateRecord(url string, action int, recordType dnsmessage.Type) *Record {
+	rec := Record{Action: action, URL: url, Type: recordType}
 	return &rec
 }
 
@@ -112,10 +108,11 @@ func CreateAllRecordsFromDB(client *mongo.Client) *[]Record {
 	return CreateManyRecordsFromDB(client, "", nil)
 }
 
-func GetOneRecordFromDB(url string) Record {
+func GetOneRecordFromDB(url string, recordType dnsmessage.Type) Record {
 	record := Record{URL: "", Action: ActionNo}
 	client := db.CreateClient()
-	recordFromDB := db.GetOne(client, "records", "url", url)
+	filter := map[string]interface{}{"url": url, "type": recordType}
+	recordFromDB := db.GetOne(client, "records", filter)
 	if recordFromDB.Err() != nil {
 		return record
 	}
@@ -126,19 +123,11 @@ func GetOneRecordFromDB(url string) Record {
 	return record
 }
 
-func GetRecordAction(client *mongo.Client, url string, records []Record) int {
-	if len(records) > 0 {
-		for _, elem := range records {
-			if elem.URL == url {
-				log.Printf("%s is marked from initial list: %s", url, ActionToString(elem.Action))
-				return elem.Action
-			}
-		}
-	}
-	record := GetOneRecordFromDB(url)
-	if !IsRecordEmpty(record) {
-		log.Printf("%s is marked from database query: %s", url, ActionToString(record.Action))
-	}
+func GetRecord(client *mongo.Client, url string, messageType dnsmessage.Type) int {
+	record := GetOneRecordFromDB(url, messageType)
 
+	if !IsRecordEmpty(record) {
+		log.Printf("%s %s is marked from database query: %s", url, TypeToString(messageType), ActionToString(record.Action))
+	}
 	return record.Action
 }

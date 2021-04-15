@@ -85,22 +85,26 @@ func GetAny(client *mongo.Client, collectionName string, key string, value inter
 	return filtered
 }
 
-func GetOne(client *mongo.Client, collectionName string, key string, value interface{}) *mongo.SingleResult {
-	log.Printf("Get one document from collection %s for query %s:%s", collectionName, key, value)
+func GetOne(client *mongo.Client, collectionName string, filterItems map[string]interface{}) *mongo.SingleResult {
+	log.Printf("Get one document from collection %s for queries %v", collectionName, filterItems)
 	database := client.Database(name)
 	collection := database.Collection(collectionName)
 	ctx, cancel := createDeadlineContext(timeout)
 	defer cancel()
 
-	result := collection.FindOne(*ctx, bson.M{key: value})
+	filter := bson.M{}
+	for key, value := range filterItems {
+		filter[key] = value
+	}
+	result := collection.FindOne(*ctx, filter)
 
 	if result.Err() != nil {
-		log.Printf("No documents found in collection %s for query %s:%s: %s", collectionName, key, value, result.Err().Error())
+		log.Printf("No documents found in collection %s for query %v: %s", collectionName, filterItems, result.Err().Error())
 	}
 	return result
 }
 
-func DeleteAll(client *mongo.Client, collectionName string) {
+func DeleteAll(client *mongo.Client, collectionName string) int64 {
 	database := client.Database(name)
 	collection := database.Collection(collectionName)
 	ctx, cancel := createDeadlineContext(timeout)
@@ -112,7 +116,10 @@ func DeleteAll(client *mongo.Client, collectionName string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Deleted %d documents from %s collection", result.DeletedCount, collectionName)
+	count := result.DeletedCount
+	log.Printf("Deleted %d documents from %s collection", count, collectionName)
+	return count
+
 }
 
 func CountDocuments(client *mongo.Client, collectionName string, key string, value interface{}) int {

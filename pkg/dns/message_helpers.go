@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -11,41 +12,44 @@ import (
 
 type Question struct {
 	URL  string
-	Type string
+	Type dnsmessage.Type
 }
 
 type MessageData struct {
 	ID           uint16
 	Questions    []Question
 	isResponse   bool
-	ResponseType string
+	ResponseType dnsmessage.Type
 	ResponseURL  string
+	Data         *dnsmessage.Message
 }
 
-func createMessageFromBuffer(buf []byte) (dnsmessage.Message, MessageData, error) {
-	var message dnsmessage.Message
-	var data MessageData
-	err := message.Unpack(buf)
+func createMessageFromBuffer(buf []byte) (MessageData, error) {
+	var dnsMessage dnsmessage.Message
+	var message MessageData
+	err := dnsMessage.Unpack(buf)
 	if err != nil {
 		log.Println(err)
 	}
 
-	data.ID = message.ID
-	data.isResponse = message.Header.Response
-	data.ResponseType = ""
-	if data.isResponse && len(message.Authorities) != 0 {
-		data.ResponseType = message.Authorities[0].Header.Type.String()
-		data.ResponseURL = strings.TrimSuffix(message.Authorities[0].Header.Name.String(), ".")
+	message.ID = dnsMessage.ID
+	message.isResponse = dnsMessage.Header.Response
+	message.ResponseType = dnsmessage.TypeA
+	if message.isResponse && len(dnsMessage.Authorities) != 0 {
+		message.ResponseType = dnsMessage.Authorities[0].Header.Type
+		message.ResponseURL = strings.TrimSuffix(dnsMessage.Authorities[0].Header.Name.String(), ".")
 	}
 
-	for _, question := range message.Questions {
+	for _, question := range dnsMessage.Questions {
 		var parsedQuestion Question
-		parsedQuestion.Type = question.Type.String()
+		parsedQuestion.Type = question.Type
 		parsedQuestion.URL = strings.TrimSuffix(question.Name.String(), ".")
-		data.Questions = append(data.Questions, parsedQuestion)
+		message.Questions = append(message.Questions, parsedQuestion)
 	}
 
-	return message, data, err
+	message.Data = &dnsMessage
+
+	return message, err
 }
 
 func responseToString(data MessageData, s Server) string {
@@ -58,4 +62,41 @@ func questionToString(question Question, addr net.UDPAddr) string {
 
 func questionToStringShort(question Question) string {
 	return fmt.Sprintf("Received question for %s", question.URL)
+}
+
+func TypeToString(mtype dnsmessage.Type) string {
+	switch mtype {
+	case dnsmessage.TypeA:
+		return "A"
+	case dnsmessage.TypeAAAA:
+		return "AAAA"
+	case dnsmessage.TypeCNAME:
+		return "CNAME"
+	case dnsmessage.TypeMX:
+		return "MX"
+	case dnsmessage.TypeSOA:
+		return "SOA"
+	default:
+		log.Fatalf("Invalid type: %v", mtype)
+		return ""
+	}
+}
+
+func StringToType(mtype string) (dnsmessage.Type, error) {
+	switch mtype {
+	case "UNKNOWN":
+		return dnsmessage.TypeALL, nil
+	case "A":
+		return dnsmessage.TypeA, nil
+	case "AAAA":
+		return dnsmessage.TypeAAAA, nil
+	case "CNAME":
+		return dnsmessage.TypeCNAME, nil
+	case "MX":
+		return dnsmessage.TypeMX, nil
+	case "SOA":
+		return dnsmessage.TypeSOA, nil
+	default:
+		return dnsmessage.TypeA, errors.New("unsupported type")
+	}
 }
