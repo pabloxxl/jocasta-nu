@@ -65,7 +65,7 @@ func GetStatsCollection(client *mongo.Client) *StatCollection {
 	countLog := db.CountDocuments(client, "stats", "action", ActionToString(ActionLog))
 
 	statCollection.Number_of_blocked_requests = countBlock + countBlockRegex
-	statCollection.Number_of_records = countBlock + countBlockRegex + countLog
+	statCollection.Number_of_requests = countBlock + countBlockRegex + countLog
 	statCollection.Requests = getAllStats(client)
 
 	return &statCollection
