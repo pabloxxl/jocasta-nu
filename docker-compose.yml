@@ -1,0 +1,32 @@
+services:
+  dns:
+    image: dns:${TAG}
+    ports:
+      - 8090:8090/udp
+    environment:
+      - PORT=8090
+      - RESOLVER_IP=1.1.1.1
+      - RESOLVER_PORT=53
+      - DEBUG=1
+    command: /dns
+  rest:
+    image: rest:${TAG}
+    ports:
+      - 8080:8080/tcp
+    command: /rest
+  mongo:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: example
+      MONGO_INITDB_ROOT_PASSWORD: example
+    command: mongod --quiet --logpath /dev/null 
+    ports:
+      - 27017:27017/tcp
+    volumes:
+      - mongo_volume:/data/db
+
+volumes:
+  mongo_volume:
+
+
+
