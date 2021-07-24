@@ -2,9 +2,9 @@ services:
   dns:
     image: dns:${TAG}
     ports:
-      - 8090:8090/udp
+      - 53:53/udp
     environment:
-      - PORT=8090
+      - PORT=53
       - RESOLVER_IP=1.1.1.1
       - RESOLVER_PORT=53
       - DEBUG=1
